@@ -51,7 +51,7 @@ test('insert then read back an event', (t) => {
   t.is(store.getEvent('missing'), null)
 })
 
-test('insert is idempotent — a duplicate is a no-op, not an error', (t) => {
+test('insert is idempotent: a duplicate is a no-op, not an error', (t) => {
   const store = fresh()
   t.teardown(() => store.close())
 
@@ -546,7 +546,7 @@ test('tampering with any audit row breaks the chain at that row', (t) => {
   t.ok(result.reason.includes('hash'))
 })
 
-test('recomputing the tampered row is not enough — the chain still breaks', (t) => {
+test('recomputing the tampered row is not enough: the chain still breaks', (t) => {
   const store = fresh()
   t.teardown(() => store.close())
 

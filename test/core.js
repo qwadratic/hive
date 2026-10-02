@@ -440,7 +440,7 @@ test('isPrivateIp covers the IPv6 ranges including IPv4-mapped', (t) => {
 test('isPrivateIp fails closed on garbage and passes hostnames through', (t) => {
   t.is(core.isPrivateIp(''), true)
   t.is(core.isPrivateIp(null), true)
-  t.is(core.isPrivateIp('999.1.1.1'), false, 'not an IP literal — caller must resolve it')
+  t.is(core.isPrivateIp('999.1.1.1'), false, 'not an IP literal: caller must resolve it')
   t.is(core.isPrivateIp('example.com'), false, 'hostname needs resolution before the check')
   t.is(core.isPrivateIp(':::::'), true, 'malformed IPv6 fails closed')
 })
