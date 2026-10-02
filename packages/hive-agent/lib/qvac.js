@@ -3,17 +3,16 @@
 const { InferenceProvider, CAPABILITIES } = require('./provider')
 
 /**
- * QVAC adapter — Tether's local-first inference SDK.
+ * QVAC adapter for Tether's local-first inference SDK.
  *
  * `@qvac/sdk` is required lazily and is an optional dependency, so neither the
  * relay nor the test suite ever needs it installed. A persona selects this
  * provider with `runtime: "qvac"`.
  *
- * Delegated inference is the interesting part for a Pears deployment: when a
- * persona names a `provider` public key, `loadModel` is given a `delegate`
- * block and inference runs on a remote peer over HyperDHT — the same DHT the
- * relay transport uses. A laptop agent can run a model it could never host,
- * and neither machine needs a public address.
+ * Delegated inference: when a persona names a `provider` public key,
+ * `loadModel` is given a `delegate` block and inference runs on a remote peer
+ * over HyperDHT, the same DHT the relay transport uses. A laptop agent can run
+ * a model it could never host, and neither machine needs a public address.
  */
 class QvacProvider extends InferenceProvider {
   constructor (opts = {}) {
