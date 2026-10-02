@@ -19,5 +19,6 @@ module.exports = {
   Transport: transports.Transport,
   TransportClient: transports.TransportClient,
   WebSocketTransport: transports.WebSocketTransport,
-  SwarmTransport: transports.SwarmTransport
+  SwarmTransport: transports.SwarmTransport,
+  LoopbackTransport: transports.LoopbackTransport
 }

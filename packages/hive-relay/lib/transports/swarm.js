@@ -107,7 +107,15 @@ class SwarmTransport extends Transport {
       protocol: PROTOCOL,
       onopen: () => {
         session = this.accept({
-          send: (frame) => frames.send(frame),
+          // Always reports success. The stream buffers writes beyond its
+          // high-water mark, and the relay drops a peer after three false
+          // returns in a row, which would disconnect any client that reads a
+          // long history. Slow-peer detection needs the relay to wait for
+          // 'drain' instead.
+          send: (frame) => {
+            frames.send(frame)
+            return true
+          },
           close: () => {
             channel.close()
             stream.end()

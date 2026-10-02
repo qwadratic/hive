@@ -4,6 +4,7 @@ const registry = require('./registry')
 const { Transport, TransportClient } = require('./transport')
 const { WebSocketTransport, WebSocketClient } = require('./ws')
 const { SwarmTransport, SwarmClient } = require('./swarm')
+const { LoopbackTransport, LoopbackClient } = require('./loopback')
 
 registry.registerTransport({
   id: 'ws',
@@ -21,6 +22,14 @@ registry.registerTransport({
   Client: SwarmClient
 })
 
+registry.registerTransport({
+  id: 'loopback',
+  schemes: ['loopback'],
+  capabilities: { encrypted: false, http: false },
+  Server: LoopbackTransport,
+  Client: LoopbackClient
+})
+
 module.exports = {
   ...registry,
   Transport,
@@ -28,5 +37,7 @@ module.exports = {
   WebSocketTransport,
   WebSocketClient,
   SwarmTransport,
-  SwarmClient
+  SwarmClient,
+  LoopbackTransport,
+  LoopbackClient
 }
