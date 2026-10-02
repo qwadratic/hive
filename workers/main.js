@@ -9,6 +9,7 @@
 const path = require('bare-path')
 const fs = require('bare-fs')
 const FramedStream = require('framed-stream')
+const process = require('bare-process')
 
 const { openStore } = require('hive-store')
 const { Relay, MediaStore, transports } = require('hive-relay')
@@ -58,8 +59,8 @@ async function main () {
     url: `ws://127.0.0.1:${port}`,
     name,
     rateLimiter: new RateLimiter({ tier: 'human' }),
-    requireRelayMembership: Bare.env?.HIVE_REQUIRE_RELAY_MEMBERSHIP === 'true',
-    requireAllowlist: Bare.env?.HIVE_PUBKEY_ALLOWLIST === 'true'
+    requireRelayMembership: process.env.HIVE_REQUIRE_RELAY_MEMBERSHIP === 'true',
+    requireAllowlist: process.env.HIVE_PUBKEY_ALLOWLIST === 'true'
   })
 
   relay.workflowEngine = new WorkflowEngine(relay)

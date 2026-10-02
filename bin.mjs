@@ -43,16 +43,19 @@ if (flags.version === true || flags.v === true) {
   Bare.exit(0)
 }
 
-// Anything that is not `relay` is a CLI command, so one binary covers both
-// "run the workspace" and "talk to a workspace".
 if ((flags.help === true || flags.h === true) && mode === undefined) {
   console.log(USAGE)
   Bare.exit(0)
 }
 
-if (mode !== undefined && mode !== 'relay') {
+// Anything that is not `relay` is a CLI command, so one binary covers both
+// "run the workspace" and "talk to a workspace". `relay info` and `relay key`
+// are CLI commands that share the name.
+const relayCli = mode === 'relay' && ['info', 'key'].includes(positional[1])
+
+if (mode !== undefined && (mode !== 'relay' || relayCli)) {
   const result = await runCli(Bare.argv.slice(2), {
-    env: Bare.env ?? {},
+    env: process.env,
     readStdin: readStdin
   })
 
@@ -115,8 +118,8 @@ for (const signal of ['SIGHUP', 'SIGINT', 'SIGQUIT', 'SIGTERM']) {
 function persistent () {
   const home = os.homedir()
   if (os.platform() === 'darwin') return path.join(home, 'Library', 'Application Support')
-  if (isWindows) return Bare.env.APPDATA ?? path.join(home, 'AppData', 'Roaming')
-  return Bare.env.XDG_CONFIG_HOME ?? path.join(home, '.config')
+  if (isWindows) return process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming')
+  return process.env.XDG_CONFIG_HOME ?? path.join(home, '.config')
 }
 
 function readStdin () {
