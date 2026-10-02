@@ -13,6 +13,8 @@ jobs:
     permissions:
       issues: write
       contents: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Auto-label new issues
         if: github.event.action == 'opened'
@@ -34,6 +36,8 @@ jobs:
       issues: write
       contents: write
       pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -68,22 +72,25 @@ jobs:
 
       - name: Run Claude Code to solve issue
         working-directory: ${{ steps.worktree.outputs.worktree_dir }}
+        # Issue fields are user input. They go through env, never through
+        # ${{ }} inside the script, so a title or body cannot inject shell.
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPO: ${{ github.repository }}
+          WORKTREE_DIR: ${{ steps.worktree.outputs.worktree_dir }}
         run: |
-          ISSUE_NUM=${{ github.event.issue.number }}
-          ISSUE_TITLE="${{ github.event.issue.title }}"
-          ISSUE_BODY="${{ github.event.issue.body }}"
-
           cat > /tmp/issue-prompt.md <<EOF
           Solve GitHub issue #$ISSUE_NUM: $ISSUE_TITLE
 
           Issue description:
           $ISSUE_BODY
 
-          Repository: ${{ github.repository }}
-          Worktree: ${{ steps.worktree.outputs.worktree_dir }}
+          Repository: $REPO
+          Worktree: $WORKTREE_DIR
 
           Requirements:
           - Implement the fix/feature described in the issue
@@ -104,6 +111,8 @@ jobs:
       - name: Push changes and create PR
         if: always()
         working-directory: ${{ steps.worktree.outputs.worktree_dir }}
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -114,7 +123,7 @@ jobs:
             git push origin HEAD:issue/${{ github.event.issue.number }}
 
             gh pr create \
-              --title "Fix #${{ github.event.issue.number }}: ${{ github.event.issue.title }}" \
+              --title "Fix #${{ github.event.issue.number }}: $ISSUE_TITLE" \
               --body "Automated fix for issue #${{ github.event.issue.number }}" \
               --base main \
               --head issue/${{ github.event.issue.number }} \
