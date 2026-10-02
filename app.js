@@ -3,14 +3,15 @@
 const ReadyResource = require('ready-resource')
 const FramedStream = require('framed-stream')
 
+const CLOSE_TIMEOUT_MS = 5000
+
 /**
  * The host half of the hello-pear-bare shape.
  *
  * It spawns the Bare worker that owns the peer-to-peer code and the updater,
  * wraps the IPC pipe in length-prefixed framing, and turns the worker's
  * messages into events `bin.mjs` can print. Keeping the peer-to-peer work off
- * this thread is what lets the CLI stay responsive while the swarm does its
- * thing.
+ * this thread keeps the CLI responsive.
  */
 class App extends ReadyResource {
   constructor (opts = {}) {
@@ -23,13 +24,15 @@ class App extends ReadyResource {
     this.upgrade = opts.upgrade ?? ''
     this.name = opts.name ?? 'hive'
     this.port = opts.port ?? 3000
-    this.swarm = opts.swarm !== false
+    this.transports = (opts.transports ?? ['ws', 'swarm'])
+      .filter((id) => !(id === 'swarm' && opts.swarm === false))
 
     this.url = null
     this.link = null
     this.pubkey = null
     this.IPC = null
     this.pipe = null
+    this._workerClosed = null
   }
 
   _open () {
@@ -43,7 +46,7 @@ class App extends ReadyResource {
       this.dir,
       this.app ?? '',
       String(this.port),
-      String(this.swarm)
+      this.transports.join(',')
     ])
 
     this.pipe = new FramedStream(this.IPC)
@@ -60,14 +63,20 @@ class App extends ReadyResource {
     }
 
     switch (message.type) {
-      case 'listening':
-        this.url = message.url
-        this.emit('listening', message)
+      case 'transport':
+        this.emit('transport', message)
+        // The two built-in transports keep their own events.
+        if (message.id === 'ws') {
+          this.url = message.url
+          this.emit('listening', message)
+        } else if (message.id === 'swarm') {
+          this.link = message.link
+          this.emit('swarm', message)
+        }
         break
 
-      case 'swarm':
-        this.link = message.link
-        this.emit('swarm', message)
+      case 'closed':
+        this._workerClosed?.()
         break
 
       case 'ready':
@@ -93,14 +102,18 @@ class App extends ReadyResource {
   }
 
   async _close () {
+    // Wait for the worker to report that it closed its transports, updater and
+    // store. The timeout covers a worker that is stuck or already gone.
+    const closed = new Promise((resolve) => { this._workerClosed = resolve })
+
     try {
       this.pipe?.write(JSON.stringify({ type: 'close' }))
     } catch {
-      // The worker may already be gone.
+      this._workerClosed()
     }
-    // Give the worker a moment to close its store cleanly before the process
-    // tears the pipe down under it.
-    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    await Promise.race([closed, new Promise((resolve) => setTimeout(resolve, CLOSE_TIMEOUT_MS))])
+
     try {
       this.IPC?.destroy()
     } catch {}

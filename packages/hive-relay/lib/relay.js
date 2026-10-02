@@ -41,9 +41,9 @@ const { commandHandlers } = require('./handlers')
 let nextConnId = 1
 
 /**
- * One client connection, independent of how its bytes arrive. A WebSocket and
- * a Hyperswarm stream produce exactly the same object, which is why the whole
- * protocol test suite can be run twice over two transports.
+ * One client connection, independent of how its bytes arrive. Every transport
+ * hands the relay the same object (see transports/transport.js), so the
+ * protocol engine does not know which transport carries a given peer.
  */
 class Connection {
   constructor (relay, { send, close, remote = null, url = null }) {
@@ -215,7 +215,11 @@ class Relay extends EventEmitter {
 
   // ------------------------------------------------------- event pipeline --
 
-  /** The 12-step pipeline from SPEC.md §4.2, in order. */
+  /**
+   * The event pipeline from SPEC.md §4.2. The step numbers are this file's own:
+   * search indexing happens inside the store insert here, and kind-specific
+   * ingest rules run before the ephemeral split.
+   */
   async _handleEvent (connection, event) {
     const id = typeof event?.id === 'string' ? event.id : ''
 
@@ -224,7 +228,7 @@ class Relay extends EventEmitter {
       return connection.send(encode.ok(id, false, 'auth-required: authenticate before publishing'))
     }
 
-    // 2. PUBKEY MATCH — you may only publish as yourself.
+    // 2. PUBKEY MATCH: you may only publish as yourself.
     if (connection.auth !== null && event.pubkey !== connection.auth.pubkey) {
       return connection.send(encode.ok(id, false, 'invalid: event pubkey does not match the authenticated pubkey'))
     }
@@ -253,15 +257,15 @@ class Relay extends EventEmitter {
     }
     const channelId = ingest.channelId
 
-    // 4. EPHEMERAL ROUTE — verified, never stored, never audited.
+    // 4. EPHEMERAL ROUTE: verified, never stored, never audited.
     if (isEphemeral(event.kind)) {
       return this._handleEphemeral(connection, event, channelId)
     }
 
     // 7. MEMBERSHIP / COMMAND AUTHORIZATION
     //
-    // Command kinds carry their own rules — a join request comes from someone
-    // who is by definition not yet a member — so they authorize themselves and
+    // Command kinds carry their own rules (a join request comes from someone
+    // who is by definition not yet a member), so they authorize themselves and
     // skip the generic membership gate. Authorization runs BEFORE the store, so
     // a rejected command leaves nothing behind.
     const handler = this.handlers.get(event.kind)
@@ -295,7 +299,7 @@ class Relay extends EventEmitter {
       return connection.send(encode.ok(id, result.stored.event.id === event.id, reason))
     }
 
-    // 9. SIDE EFFECTS — NIP-29 commands and friends. Runs after the command
+    // 9. SIDE EFFECTS: NIP-29 commands and friends. Runs after the command
     //    event is durably stored, so the log explains every state change.
     if (handler !== undefined && typeof handler.apply === 'function') {
       try {
@@ -369,7 +373,7 @@ class Relay extends EventEmitter {
 
     if (event.kind === KIND_REACTION) {
       // A reaction's channel comes from its target, never from a client-supplied
-      // h tag — otherwise a reaction could smuggle itself into another channel.
+      // h tag, otherwise a reaction could smuggle itself into another channel.
       const targets = referencedEvents(event)
       if (targets.length === 0) return reject('invalid: reaction must reference an event')
 
@@ -475,7 +479,7 @@ class Relay extends EventEmitter {
     } else {
       // The #p requirement applies to GLOBAL subscriptions only. P-gated events
       // are stored community-global, so a channel-scoped filter cannot reach
-      // them — and demanding #p there would break the most ordinary query a
+      // them, and demanding #p there would break the most ordinary query a
       // client makes: "everything in this channel". Per-event authorization in
       // _canRead is the actual enforcement on both paths.
       const gate = checkPGatedAuthorization(filters, connection.pubkey)

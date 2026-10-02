@@ -11,7 +11,7 @@ const fs = require('bare-fs')
 const FramedStream = require('framed-stream')
 
 const { openStore } = require('hive-store')
-const { Relay, WebSocketTransport, SwarmTransport, MediaStore } = require('hive-relay')
+const { Relay, MediaStore, transports } = require('hive-relay')
 const { WorkflowEngine } = require('hive-workflow')
 const { RateLimiter } = require('hive-auth')
 const core = require('hive-core')
@@ -26,12 +26,12 @@ const [
   dir,
   app,
   portArg,
-  swarmArg
+  transportsArg
 ] = Bare.argv
 
 const updates = updatesArg !== 'false'
 const port = Number(portArg) || 3000
-const swarmEnabled = swarmArg !== 'false'
+const transportIds = (transportsArg ?? 'ws,swarm').split(',').filter(Boolean)
 
 const pipe = new FramedStream(Bare.IPC)
 const say = (type, payload = {}) => {
@@ -76,15 +76,15 @@ async function main () {
     }
   }
 
-  const wsTransport = new WebSocketTransport(relay, { port, mediaStore })
-  await wsTransport.listen()
-  say('listening', { url: `http://127.0.0.1:${wsTransport.port}`, port: wsTransport.port })
+  // Options that only some transports take. Everything else uses defaults.
+  const transportOptions = { ws: { port, mediaStore } }
 
-  let swarmTransport = null
-  if (swarmEnabled) {
-    swarmTransport = new SwarmTransport(relay)
-    await swarmTransport.listen()
-    say('swarm', { link: swarmTransport.link, publicKey: swarmTransport.publicKey })
+  const active = []
+  for (const id of transportIds) {
+    const transport = transports.createTransport(id, relay, transportOptions[id] ?? {})
+    await transport.listen()
+    active.push(transport)
+    say('transport', { id, link: transport.link, ...transport.describe() })
   }
 
   say('ready', {
@@ -96,10 +96,12 @@ async function main () {
 
   // ------------------------------------------------------------------ OTA --
 
+  let pear = null
+
   if (updates && typeof upgrade === 'string' && upgrade.startsWith('pear://')) {
     try {
       const PearRuntime = require('pear-runtime')
-      const pear = new PearRuntime({
+      pear = new PearRuntime({
         dir,
         version,
         upgrade,
@@ -110,10 +112,14 @@ async function main () {
 
       pear.on('error', (err) => say('error', { message: 'updater: ' + err.message }))
       pear.updater.on('updating', () => say('updating'))
-      pear.updater.on('updated', () => {
+      pear.updater.on('updated', async () => {
         say('updated')
-        pear.updater.applyUpdate()
-        say('update-applied')
+        try {
+          await pear.updater.applyUpdate()
+          say('update-applied')
+        } catch (err) {
+          say('error', { message: 'updater: ' + err.message })
+        }
       })
 
       await pear.ready()
@@ -130,10 +136,21 @@ async function main () {
   const shutdown = async () => {
     say('closing')
     relay.close()
-    await wsTransport.close()
-    if (swarmTransport !== null) await swarmTransport.close()
+    for (const transport of active) await transport.close()
+
+    // pear-runtime holds a Corestore and a swarm of its own; they are only
+    // closed cleanly by close().
+    try {
+      await pear?.close()
+    } catch (err) {
+      say('error', { message: 'updater close: ' + err.message })
+    }
+
     store.close()
-    Bare.exit(0)
+    say('closed')
+
+    // Let the pipe flush the last message before this thread ends.
+    setTimeout(() => Bare.exit(0), 50)
   }
 
   pipe.on('data', (data) => {

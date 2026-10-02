@@ -5,8 +5,7 @@ const { SubscriptionRegistry, channelsFromFilters } = require('./lib/subscriptio
 const protocol = require('./lib/protocol')
 const handlers = require('./lib/handlers')
 const { MediaStore } = require('./lib/media')
-const { WebSocketTransport } = require('./lib/transports/ws')
-const { SwarmTransport } = require('./lib/transports/swarm')
+const transports = require('./lib/transports')
 
 module.exports = {
   Relay,
@@ -16,6 +15,9 @@ module.exports = {
   protocol,
   handlers,
   MediaStore,
-  WebSocketTransport,
-  SwarmTransport
+  transports,
+  Transport: transports.Transport,
+  TransportClient: transports.TransportClient,
+  WebSocketTransport: transports.WebSocketTransport,
+  SwarmTransport: transports.SwarmTransport
 }

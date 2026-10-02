@@ -22,11 +22,13 @@ const isDev = Bare.argv[1]?.endsWith('bin.mjs') ?? false
 const { positional, flags } = parseArgs(Bare.argv.slice(2))
 const mode = positional[0]
 
-const USAGE = `${appName} ${pkg.version} — ${pkg.description}
+const USAGE = `${appName} ${pkg.version}: ${pkg.description}
 
   hive relay [--port 3000] [--storage <dir>] [--no-updates] [--no-swarm]
+             [--transport ws,swarm]
       Run the workspace relay: WebSocket + HTTP on --port, and (unless
-      --no-swarm) reachable peer-to-peer at hyper://<relay pubkey>.
+      --no-swarm) reachable peer-to-peer at hyper://<relay key>.
+      --transport picks the transports by registry name (default ws,swarm).
 
   hive <group> <subcommand> [flags]
       The agent-first CLI. Groups: channels, messages, canvas, reactions, dms,
@@ -78,11 +80,15 @@ const app = new App({
   upgrade: pkg.upgrade,
   name: isWindows ? appName + '.exe' : appName,
   port: Number(flags.port) || 3000,
-  swarm: flags.swarm
+  swarm: flags.swarm,
+  transports: typeof flags.transport === 'string' ? flags.transport.split(',') : undefined
 })
 
 app.on('listening', (m) => console.log(`[relay] listening on ${m.url}`))
 app.on('swarm', (m) => console.log(`[relay] reachable at ${m.link}`))
+app.on('transport', (m) => {
+  if (m.id !== 'ws' && m.id !== 'swarm') console.log(`[relay] ${m.id} transport at ${m.link}`)
+})
 app.on('ready-relay', (m) => {
   console.log(`[relay] identity ${m.npub}`)
   console.log(`[relay] storage  ${m.storage}`)
@@ -91,7 +97,7 @@ app.on('ready-relay', (m) => {
 
 app.on('updating', () => console.log('[updater] fetching a new version'))
 app.on('updated', () => console.log('[updater] update staged, applying'))
-app.on('update-applied', () => console.log('[updater] applied — restart to run the latest version'))
+app.on('update-applied', () => console.log('[updater] applied, restart to run the latest version'))
 app.on('updater-disabled', () => {})
 app.on('worker-error', (m) => console.error('[relay:error]', m.message))
 app.on('error', (err) => console.error('[app:error]', err.message))

@@ -10,7 +10,6 @@
   ],
   "dependencies": {
     "bare-events": "^2.5.4",
-    "bare-ws": "^3.0.0",
     "hive-auth": "^0.1.0",
     "hive-core": "^0.1.0",
     "hive-relay": "^0.1.0",
