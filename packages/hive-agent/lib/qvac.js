@@ -32,7 +32,7 @@ class QvacProvider extends InferenceProvider {
     } catch {
       throw new Error(
         'the qvac runtime needs @qvac/sdk installed: npm install @qvac/sdk ' +
-        '(or run with --inference mock)'
+        '(or set the persona runtime to "mock")'
       )
     }
     return this.sdk

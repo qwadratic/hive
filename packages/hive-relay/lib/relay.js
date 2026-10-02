@@ -215,11 +215,7 @@ class Relay extends EventEmitter {
 
   // ------------------------------------------------------- event pipeline --
 
-  /**
-   * The event pipeline from SPEC.md §4.2. The step numbers are this file's own:
-   * search indexing happens inside the store insert here, and kind-specific
-   * ingest rules run before the ephemeral split.
-   */
+  /** The event pipeline from SPEC.md §4.2; the step numbers match it. */
   async _handleEvent (connection, event) {
     const id = typeof event?.id === 'string' ? event.id : ''
 
@@ -243,21 +239,21 @@ class Relay extends EventEmitter {
       return connection.send(encode.ok(id, false, 'invalid: auth events are not stored'))
     }
 
-    // 5. VERIFY (before the ephemeral split, so unsigned ephemerals cannot
+    // 4. VERIFY (before the ephemeral split, so unsigned ephemerals cannot
     //    be used to spoof presence).
     const verified = verifyEvent(event)
     if (!verified.ok) {
       return connection.send(encode.ok(id, false, 'invalid: ' + verified.reason))
     }
 
-    // 6. Ingest rules that depend on kind rather than on membership.
+    // 5. INGEST RULES that depend on kind rather than on membership.
     const ingest = this._validateIngest(event)
     if (ingest.reason !== null) {
       return connection.send(encode.ok(id, false, ingest.reason))
     }
     const channelId = ingest.channelId
 
-    // 4. EPHEMERAL ROUTE: verified, never stored, never audited.
+    // 6. EPHEMERAL ROUTE: verified, never stored, never audited.
     if (isEphemeral(event.kind)) {
       return this._handleEphemeral(connection, event, channelId)
     }
@@ -570,7 +566,7 @@ class Relay extends EventEmitter {
       pubkey: this.pubkey,
       contact: '',
       supported_nips: [1, 9, 10, 11, 16, 17, 23, 25, 29, 33, 34, 42, 43, 45, 50, 56, 98],
-      software: 'https://github.com/hive/hive',
+      software: 'https://github.com/qwadratic/hive',
       version: require('../package.json').version,
       icon: this.icon,
       limitation: {
