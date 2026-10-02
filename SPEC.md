@@ -69,9 +69,11 @@ bin.mjs ─────► app.js ─────► workers/main.js          (h
 | `hive-agent` | `buzz-acp` + `buzz-persona` | Mention loop, persona instantiation, `InferenceProvider` (QVAC / mock) |
 | `hive-workflow` | `buzz-workflow` | YAML-as-code automation with approval gates |
 
-**Dependency rule** (inherited from Buzz): `hive-core` depends on nothing. Service packages depend on
-`hive-core` only, never on each other. `hive-relay` is the sole orchestrator and the only package
-allowed to import several services at once.
+**Dependency rule** (inherited from Buzz): `hive-core` depends on nothing. `hive-auth`, `hive-store`,
+`hive-sdk` and `hive-workflow` depend on `hive-core` only. `hive-relay` is the only server package
+that imports other services (auth and store), and the worker hands it the workflow engine. The
+clients `hive-cli` and `hive-agent` build on `hive-sdk`; `hive-agent` also imports `hive-relay` for
+the protocol parser and the transport registry.
 
 ---
 
@@ -240,7 +242,7 @@ fan-out, `COUNT`, the `ids`-lookup path, and both HTTP surfaces) consults them.
 | `RESULT_GATED_KINDS` | 30622, 44200 | Even a reader who knows the id must match `#p`; this closes the kindless `{ids:[…]}` read path |
 | `SHARED_GATED_KINDS` | 30175, 30178 | Author-only **unless** the event carries exactly one `["shared","true"]` tag (exactly two elements; `["shared","true","x"]` is not shared, and fails closed) |
 
-Persistent p-gated kinds are additionally excluded from the search index, so they cannot leak
+Persistent p-gated kinds are also excluded from the search index, so they cannot leak
 through NIP-50 (§5.4).
 
 ### 2.4 Tag conventions
