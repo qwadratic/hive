@@ -3,7 +3,7 @@
   "productName": "hive",
   "version": "0.1.0",
   "description": "Communication platform on the Pears stack: Nostr relay, agents, workflows",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "private": true,
   "type": "commonjs",
   "upgrade": "pear://replace-with-pear-touch-output",

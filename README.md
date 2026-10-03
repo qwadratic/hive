@@ -114,4 +114,4 @@ The `hyper://` wire format changed from a 4-byte length prefix to a Protomux cha
 
 ## License
 
-Apache-2.0, as declared in `package.json`. The repository doesn't contain a `LICENSE` file yet.
+MIT, see [LICENSE](LICENSE).
